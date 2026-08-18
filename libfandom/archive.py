@@ -7,6 +7,7 @@ def _writeint(num, size):
     return num.to_bytes(size, byteorder="little")
 
 TOF_MAGIC = b"ToF2DpHd"
+PAC_MAGIC = b'PAC!\x16\x05\x06 '
 
 def native_path(path: str) -> str:
     return path.replace("\\", os.sep)
@@ -72,7 +73,6 @@ def unpack(name: str):
         string = native_path(string)
         log.write(f"{string}\n")
         names.append(string)
-    print(names)
 
     # Verify the hashes and the buckets
     
@@ -124,13 +124,12 @@ def unpack(name: str):
         i += 1
 
     for i, name in enumerate(names):
-        print(name)
+
         name = native_path(name)
         offset = fileInfo[i][0]
         length = fileInfo[i][1]
 
-        fileName = os.path.split(name)[1]
-        fileDir = os.path.split(name)[0]
+        fileDir, fileName = os.path.split(name)
 
         os.makedirs(os.path.join(out, fileDir), exist_ok=True)
 
@@ -140,8 +139,44 @@ def unpack(name: str):
         newFile = open(os.path.join(out, fileDir, fileName), "wb")
         newFile.write(fileData)
 
+        fileExt = os.path.splitext(fileName)[1]
+        
+        if fileExt == ".pac":
+            extractPac(out, fileDir, fileName)
 
+def extractPac(out, pacDir, pacName):
+    pac = open(os.path.join(out, pacDir, pacName), "rb")
 
+    magic = pac.read(8)
+    if magic != PAC_MAGIC:
+        exit(f"Incorrect Magic! {magic}")
+
+    pacName = os.path.splitext(pacName)[0]
+
+    os.makedirs(os.path.join(out, pacDir, pacName), exist_ok=True)
+
+    pacSize = intlit(pac.read(4))
+    fileCount = intlit(pac.read(4))
+
+    fileInfo = []
+
+    for i in range(fileCount):
+        fileName = pac.read(0x20).decode(encoding="utf-8", errors="backslashreplace")
+        fileName = fileName[:fileName.find("\x00")]
+
+        fileOffset = intlit(pac.read(4))
+        fileSize = intlit(pac.read(4))
+
+        fileInfo.append([fileName, fileOffset, fileSize])
+
+    for i in range(fileCount):
+        pac.seek(fileInfo[i][1])
+        fileData = pac.read(fileInfo[i][2])
+
+        file = open(os.path.join(out, pacDir, pacName, fileInfo[i][0]), "wb")
+        file.write(fileData)
+
+        print(fileInfo[i][0])
 
 def hash_name(name: str) -> int:
     return sum(name.encode('ascii')) & 0xFF
@@ -149,5 +184,5 @@ def hash_name(name: str) -> int:
 
 def main():
     unpack("DVDDATA")
-    unpack("BGM")
-    unpack("VOICE")
+    #unpack("BGM")
+    #unpack("VOICE")

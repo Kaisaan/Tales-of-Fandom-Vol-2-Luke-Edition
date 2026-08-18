@@ -20,9 +20,6 @@ from libfandom.script import extract_text
 
 def main():
 
-    extract_text()
-    exit()
-
     if os.path.exists("extracted"):
         shutil.rmtree("extracted")
     print("Extracting ISO...")
