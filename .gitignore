@@ -1,5 +1,7 @@
 __pycache__
+*pyc
 *iso
+.DS_Store
 luke.xml
 translated.xml
 fandom2_secret.json
@@ -9,3 +11,5 @@ VOICE.txt
 /DVDDATA/
 /BGM/
 /VOICE/
+extracted/
+translated/

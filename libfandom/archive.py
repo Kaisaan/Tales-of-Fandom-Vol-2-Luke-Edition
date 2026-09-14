@@ -3,7 +3,7 @@ import os
 def intlit(b: bytes) -> int:
     return int.from_bytes(b, byteorder="little")
 
-def _writeint(num, size):
+def writeint(num, size):
     return num.to_bytes(size, byteorder="little")
 
 TOF_MAGIC = b"ToF2DpHd"
@@ -14,7 +14,7 @@ def native_path(path: str) -> str:
 
 def unpack(name: str):
     head = open(f"extracted/{name}.h", "rb")
-    info = open(f"extracted/{name}.i", "rb")
+    dataFile = open(f"extracted/{name}.i", "rb")
     log = open(f"{name}.txt", "w", encoding="utf-8")
     out = f"{name}"
     os.makedirs(out, exist_ok=True)
@@ -71,7 +71,7 @@ def unpack(name: str):
 
         string = raw.decode(encoding="utf-8")
         string = native_path(string)
-        log.write(f"{string}\n")
+        log.write(f"{string} {fileInfo[i][0]:X} {fileInfo[i][1]:X}\n")
         names.append(string)
 
     # Verify the hashes and the buckets
@@ -133,8 +133,8 @@ def unpack(name: str):
 
         os.makedirs(os.path.join(out, fileDir), exist_ok=True)
 
-        info.seek(offset)
-        fileData = info.read(length)
+        dataFile.seek(offset)
+        fileData = dataFile.read(length)
 
         newFile = open(os.path.join(out, fileDir, fileName), "wb")
         newFile.write(fileData)
@@ -181,8 +181,42 @@ def extractPac(out, pacDir, pacName):
 def hash_name(name: str) -> int:
     return sum(name.encode('ascii')) & 0xFF
 
+def pack(name: str):
+    head = open(f"translated/{name}.h", "r+b")
+    dataFile = open(f"translated/{name}.i", "r+b")
+    log = open(f"{name}.txt", "r", encoding="utf-8")
+    out = f"{name}"
+
+    fileInfo = log.readline().split()
+    fileCount = int(fileInfo[0], 16)
+    infoOffset = int(fileInfo[5], 16)
+
+    print(fileCount, infoOffset)
+
+    offset = 0
+    head.seek(infoOffset)
+    for i in range(fileCount):
+        lineInfo = log.readline().split()
+        line = lineInfo[0]
+        file = open(os.path.join(out, line), "rb")
+        data = file.read()
+        size = len(data)
+        dataFile.write(data)
+
+        head.write(writeint(offset, 4))
+        head.write(writeint(size, 4))
+        print(f"{line} written!")
+
+        offset = offset + size
+
+    head.close()
+    dataFile.close()
+    log.close()
+
+
 
 def main():
     unpack("DVDDATA")
     #unpack("BGM")
     #unpack("VOICE")
+
